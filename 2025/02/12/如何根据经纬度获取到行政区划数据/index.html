@@ -1,0 +1,332 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>如何根据经纬度获取到行政区划数据 | 呆大王的博客</title><meta name="author" content="呆大王"><meta name="copyright" content="呆大王"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在LBS应用中，根据坐标来解析获得对应是哪个城市是一个很常见的功能，比如App里面通过手机定位自动选择城市；本文介绍的是通过自己建的数据库，利用SQL空间查询来进行坐标解析得到对应的省市区，绝大部分支持空间数据类型(Spatial)的数据库均支持，包括但不限于：MySQL、SQL Server、Oracle、PostgreSQL等；开发语言不限，只要能进行数据库查询就都支持，用Java、Pyt">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何根据经纬度获取到行政区划数据">
+<meta property="og:url" content="https://daidawang.github.io/2025/02/12/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%BB%8F%E7%BA%AC%E5%BA%A6%E8%8E%B7%E5%8F%96%E5%88%B0%E8%A1%8C%E6%94%BF%E5%8C%BA%E5%88%92%E6%95%B0%E6%8D%AE/index.html">
+<meta property="og:site_name" content="呆大王的博客">
+<meta property="og:description" content="在LBS应用中，根据坐标来解析获得对应是哪个城市是一个很常见的功能，比如App里面通过手机定位自动选择城市；本文介绍的是通过自己建的数据库，利用SQL空间查询来进行坐标解析得到对应的省市区，绝大部分支持空间数据类型(Spatial)的数据库均支持，包括但不限于：MySQL、SQL Server、Oracle、PostgreSQL等；开发语言不限，只要能进行数据库查询就都支持，用Java、Pyt">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png">
+<meta property="article:published_time" content="2025-02-12T08:14:02.000Z">
+<meta property="article:modified_time" content="2025-02-12T08:26:55.720Z">
+<meta property="article:author" content="呆大王">
+<meta property="article:tag" content="经纬度">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png"><link rel="shortcut icon" href="http://mms1.baidu.com/it/u=3426123179,1132541183&fm=253&app=120&f=JPEG?w=801&h=500"><link rel="canonical" href="https://daidawang.github.io/2025/02/12/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%BB%8F%E7%BA%AC%E5%BA%A6%E8%8E%B7%E5%8F%96%E5%88%B0%E8%A1%8C%E6%94%BF%E5%8C%BA%E5%88%92%E6%95%B0%E6%8D%AE/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.0.0-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/all.min.css"><script>(()=>{
+      const saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+      
+      window.btf = {
+        saveToLocal: saveToLocal,
+        getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = url
+          script.async = true
+          script.onerror = reject
+          script.onload = script.onreadystatechange = function() {
+            const loadState = this.readyState
+            if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+            script.onload = script.onreadystatechange = null
+            resolve()
+          }
+
+          Object.keys(attr).forEach(key => {
+            script.setAttribute(key, attr[key])
+          })
+
+          document.head.appendChild(script)
+        }),
+
+        getCSS: (url, id = false) => new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+          link.rel = 'stylesheet'
+          link.href = url
+          if (id) link.id = id
+          link.onerror = reject
+          link.onload = link.onreadystatechange = function() {
+            const loadState = this.readyState
+            if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+            link.onload = link.onreadystatechange = null
+            resolve()
+          }
+          document.head.appendChild(link)
+        }),
+
+        addGlobalFn: (key, fn, name = false, parent = window) => {
+          const pjaxEnable = true
+          if (!pjaxEnable && key.startsWith('pjax')) return
+
+          const globalFn = parent.globalFn || {}
+          const keyObj = globalFn[key] || {}
+    
+          if (name && keyObj[name]) return
+    
+          name = name || Object.keys(keyObj).length
+          keyObj[name] = fn
+          globalFn[key] = keyObj
+          parent.globalFn = globalFn
+        }
+      }
+    
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+      
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })()</script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '如何根据经纬度获取到行政区划数据',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2025-02-12 16:26:55'
+}</script><link rel="stylesheet" href="/css/loading_gif.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div id="web_bg" style="background-image: url(url(/img/background.jpg));"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="http://mms1.baidu.com/it/u=3426123179,1132541183&amp;fm=253&amp;app=120&amp;f=JPEG?w=801&amp;h=500" onerror="onerror=null;src='/img/ironheart.gif'" alt="avatar"/></div><div class="site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">12</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">5</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 列表</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/music/"><i class="fa-fw fas fa-music"></i><span> 音乐</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 电影</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友情链接</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于我们</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122308704.png);"><nav id="nav"><span id="blog-info"><a href="/" title="呆大王的博客"><img class="site-icon" src="http://mms1.baidu.com/it/u=3426123179,1132541183&amp;fm=253&amp;app=120&amp;f=JPEG?w=801&amp;h=500" alt="Logo"/><span class="site-name">呆大王的博客</span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 列表</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/music/"><i class="fa-fw fas fa-music"></i><span> 音乐</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 电影</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友情链接</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于我们</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">如何根据经纬度获取到行政区划数据</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2025-02-12T08:14:02.000Z" title="发表于 2025-02-12 16:14:02">2025-02-12</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2025-02-12T08:26:55.720Z" title="更新于 2025-02-12 16:26:55">2025-02-12</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="如何根据经纬度获取到行政区划数据"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><meta name="referrer" content="no-referrer" />
+
+<p>在LBS应用中，根据坐标来解析获得对应是哪个城市是一个很常见的功能，比如App里面通过手机定位自动选择城市；本文介绍的是通过自己建的数据库，利用SQL空间查询来进行坐标解析得到对应的省市区，绝大部分支持空间数据类型(<code>Spatial</code>)的数据库均支持，包括但不限于：<code>MySQL</code>、<code>SQL Server</code>、<code>Oracle</code>、<code>PostgreSQL</code>等；开发语言不限，只要能进行数据库查询就都支持，用<code>Java</code>、<code>Python</code>、<code>PHP</code>、<code>C#</code>均能很简单的实现。</p>
+<blockquote>
+<p>通过坐标来获取地址：百度地图提供的接口叫 “<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=1ULfTxg2dS844FpzWCCc1A==.X2ijaOmkUFBycRwJOGwOaX4gw77grK6J9ts4qG9BbWMNbdg7Iiq1lvvFq43C8J/4McA9ElYowhCGvkXDqdZnDw==">地址逆解析</a>”，高德地图提供的接口叫 “<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=543xET80kmDxSFgLrJaZBQ==.QV3HBnOit9xSU5aOOh24aObsgZkAMCHM5k5Wan7/uumQIhvnkmoiDHns+yFC54oLb9dtFyKT8mO8DnQ1PgalwBXmDLfQP6e2kOdoPy4G82Y=">地理逆编码</a>”，它们开放平台均提供了前后端接口，发个http请求就可以拿到数据，相关的接口调用请自行阅读平台开发文档，使用起来很方便。</p>
+<p>当然这篇文章不会去介绍怎么搞街道门牌号这些完整地址，也不讲怎么样调用人家的接口，只介绍坐标对应的省市区名称的获取，自建数据库写SQL进行空间查询，<strong>完全自己实现，比调开放平台接口相对会复杂些。</strong></p>
+<p>由于全国区县每年都会有比较多的变更，所以省市区边界数据需要经常去同步维护，好在这上面这个开源库有在持续的长期维护，新数据发布后更新相对容易很多。<strong>由于开源库更新维护数据比较及时，所以只要开源库没有被关闭，本文介绍的提取方法就一直适用；</strong> 比那些上传到下载平台就万年不更新的数据优秀很多。</p>
+</blockquote>
+<p><img src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202502121620991.png" alt="image-20250212162049807"></p>
+<h2 id=""><a href="#" class="headerlink" title=""></a></h2><h2 id="步骤一、下载省市区边界数据"><a href="#步骤一、下载省市区边界数据" class="headerlink" title="步骤一、下载省市区边界数据"></a>步骤一、下载省市区边界数据</h2><p>到开源库里面下载最新的 <code>ok_geo.csv.7z</code> 文件（13M大小，解压130M+），<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=V5mPWtKT7JrQcLPuM8h2ng==.T+5WXqg2XWeeehHUm/jmO7umGTM2lumS0eeaoVfqeOFDxZzxlZ71wPlYhudce2IfEDKroGwyxYkvgxLxLYyAhA==">点此下载</a>。下载好后解压得到 <code>ok_geo.csv</code>，此文件内包含了最新全国所有的省市区县坐标边界矢量数据。</p>
+<blockquote>
+<p>注：这个文件只包含三级（省市区）数据不含第四级（乡镇街道），如需乡镇坐标边界数据，可以请<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=4CvSqmLeyZvks1M7ZSRczg==.xYnnitpG/WT+lu4c7Tr26j35KTOp2z880GfH3GUPJBHUsp7T9envTpSzs/cDMTIQSYY4ImgMWzc7JV/f0yDO470tSUlYOzQ19+eV8Ee7rn8=">点此下载</a> <code>ok_geo4_*.csv</code> 文件（90MB+压缩包 导出后300M+）。</p>
+</blockquote>
+<h2 id="步骤二、解析CSV文件导入数据库"><a href="#步骤二、解析CSV文件导入数据库" class="headerlink" title="步骤二、解析CSV文件导入数据库"></a>步骤二、解析CSV文件导入数据库</h2><p>下载好的文件 <code>ok_geo.csv</code> 是纯文本文件，可以自行编写脚本进行解析，然后导进数据库中，自行解析处理比较复杂，请参考开源库内文档；开源库内提供了一个格式转换工具，此工具支持将CSV数据导入数据库，因此我们直接在下载数据时顺带把工具下载好，<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=I74jn9HpC7a8/gT1eiCPiA==.e9cUhhiRNyiCt65T4OXJYQKWB4m2sXO1awhbKo8UtAggMK8ix72esiznS/CXnbcekDeZWRq7nc54Nj1sz54NLTHnbS0abjlzXI+0RMphKA8wti9HN8BM0FlKw0EpJag4">点此下载</a>。</p>
+<p>此转换工具除了支持将 <code>ok_geo.csv</code> 导入数据库外，还支持导出：<code>sql</code>、<code>shp</code>、<code>geojson</code>，和坐标系转换；还可执行自定义 JavaScript 脚本，扩展出丰富功能；软件是Windows版，如果需要在MacOs中用，可以用虚拟机。</p>
+<p><img src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202502121623356.png" alt="image-20250212162313265"></p>
+<p><strong>转换工具执行导入数据库操作：</strong></p>
+<ol>
+<li>点击 <code>选择ok_geo.csv文件</code> 按钮，选择解压出来的CSV文件；</li>
+<li>数据库设置中选择要导入的数据库类型，这里选的是<code>MySQL</code>，再填写数据库连接，包括：端口、数据库名称、账号密码；</li>
+<li>点击<code>导入数据库</code>按钮，等待一会，大约3分钟左右，所有数据就都导入到了数据库按今天日期新建的表里面。</li>
+</ol>
+<p>注：csv文件内的边界数据默认是高德地图<code>GCJ-02</code>火星坐标系，如果需要其他坐标系，比如百度的<code>BD-09</code>或GPS的<code>WGS-84</code>，可以通过高级脚本中的坐标系转换插件进行转换，选择好对应的插件后，点击应用就可以了，在导入数据库时会自动进行坐标系转换。</p>
+<p>注：这个工具限制每次操作只可导出一个城市和它的下一级数据，导出少量数据还是很轻松的，所以我们可以多操作几次，将需要的城市数据全部导入数据库；比如要深圳的所有区县数据：第一遍导入全国所有的省，第二遍在城市名前缀中填写<code>广东省 </code>（结尾带一个空格）导入广东所有的市，第三遍在城市名前缀中填写<code>广东省 深圳市 </code>（结尾带一个空格）导入深圳所有的区。如果在密钥输入框中填写了密钥，此工具就没有这些限制了，开源库里面会不定期发放密钥搞福利，点击一次操作即可导出全国所有的省市区三级数据。</p>
+<p><strong>表结构和空间字段（MySQL版，其他数据库类似）：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE Areacity_Geo_20220216 (</span><br><span class="line">  id int NOT NULL, --城市id</span><br><span class="line">  pid int NOT NULL, --上级城市id</span><br><span class="line">  deep int NOT NULL, --层级：0省、1市、2区</span><br><span class="line">  name varchar(250) NOT NULL, --城市名称：`深圳市`</span><br><span class="line">  ext_path varchar(255) NOT NULL, --省市区三级完整名称：广东省 深圳市 罗湖区</span><br><span class="line">  geo geometry NOT NULL, --城市中心坐标，空间数据格式</span><br><span class="line">                --，ST_AsText转成WKT文本后：`POINT EMPTY`、`POINT (123.456 34.567)`</span><br><span class="line">  polygon geometry NOT NULL --城市边界范围图形，空间数据格式</span><br><span class="line">                --，ST_AsText转成WKT文本后：`POLYGON EMPTY`、`POLYGON ((123.456 34.567,...))`、`MULTIPOLYGON (((123.456 34.567,...)),...)`</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">对空间字段的查询，需要用`ST_AsText()`方法才能查询出字符串文本(WKT: Well Known Text)，否则查询出来的是二进制数据</span><br><span class="line">-- MySQL版：</span><br><span class="line">SELECT id, name, ST_AsText(geo) AS geo, ST_AsText(polygon) AS polygon FROM 表名</span><br><span class="line">-- SQL Server版：</span><br><span class="line">SELECT id, name, geo.STAsText() AS geo, polygon.STAsText() AS polygon FROM 表名</span><br></pre></td></tr></table></figure>
+
+<h2 id="步骤三、在程序中根据坐标解析获得城市"><a href="#步骤三、在程序中根据坐标解析获得城市" class="headerlink" title="步骤三、在程序中根据坐标解析获得城市"></a>步骤三、在程序中根据坐标解析获得城市</h2><p>省市区边界导入到了数据库后，我们就可以在在 <code>Java</code>、<code>Python</code>、<code>PHP</code>、<code>C#</code> 等程序中对数据库进行查询，通过SQL的空间计算函数<code>ST_Intersects</code>来查询一个坐标在哪些边界范围内，就能得到对应的省市区信息了。</p>
+<p><strong>空间查询SQL语句</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">比如要查询坐标`lng:113.929976 lat:22.529497`是在哪个城市</span><br><span class="line">-- MySQL版：</span><br><span class="line">SELECT id,deep,name FROM 表名 WHERE ST_Intersects(polygon, ST_GeomFromText(&#x27;POINT(113.929976 22.529497)&#x27;,0))=1</span><br><span class="line">-- SQL Server版：</span><br><span class="line">SELECT id,deep,name FROM 表名 WHERE polygon.STIntersects(geometry::STGeomFromText(&#x27;POINT(113.929976 22.529497)&#x27;,0))=1</span><br></pre></td></tr></table></figure>
+
+<p><strong>查询结果例子（MySQL版，其他数据库类似）</strong></p>
+<p><img src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202502121624935.png" alt="image-20250212162418870"></p>
+<p>程序代码连接上数据库，通过以上SQL查询到数据库数据后，就获得了省市区信息，可以通过<code>deep</code>字段来区分哪条数据是省<code>(deep=0)</code>、市<code>(deep=1)</code>、区县<code>(deep=2)</code>。</p>
+<p>通过以上三步，我们就完全是自己实现了根据经纬度坐标来解析获得对应是哪个城市这一功能。</p>
+<p>原文链接: <a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000041413398">后端 - 根据经纬度坐标获得省市区县行政区划城市名称，自建数据库 java python php c# .net 均适用 - 高坚果 - SegmentFault 思否</a></p>
+<p>原仓库地址: <a target="_blank" rel="noopener" href="https://gitee.com/xiangyuecn/AreaCity-JsSpider-StatsGov">AreaCity-JsSpider-StatsGov: 省市区县乡镇三级或四级城市数据，带拼音标注、坐标、行政区域边界范围；2025年01月14日最新采集，提供csv格式文件，支持在线转成多级联动js代码、通用json格式，提供软件转成shp、geojson、sql、导入数据库；带浏览器里面运行的js采集源码，综合了中华人民共和国民政部、国家统计局、高德地图、腾讯地图行政区划数据</a></p>
+<p>原文是需要收费的, 最后通过 转换工具 转换为 sql 脚本,博主已经购买, </p>
+<p>脚本地址:</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://daidawang.github.io">呆大王</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://daidawang.github.io/2025/02/12/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%BB%8F%E7%BA%AC%E5%BA%A6%E8%8E%B7%E5%8F%96%E5%88%B0%E8%A1%8C%E6%94%BF%E5%8C%BA%E5%88%92%E6%95%B0%E6%8D%AE/">https://daidawang.github.io/2025/02/12/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%BB%8F%E7%BA%AC%E5%BA%A6%E8%8E%B7%E5%8F%96%E5%88%B0%E8%A1%8C%E6%94%BF%E5%8C%BA%E5%88%92%E6%95%B0%E6%8D%AE/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://daidawang.github.io" target="_blank">呆大王的博客</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E7%BB%8F%E7%BA%AC%E5%BA%A6/">经纬度</a></div><div class="post-share"><div class="social-share" data-image="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="prev-post pull-left" href="/2025/02/17/%E7%AE%97%E5%8A%9B%E4%BA%92%E8%81%94%E4%BA%92%E9%80%9A/" title=""><div class="cover" style="background: var(--default-bg-color)"></div><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info"></div></div></a><a class="next-post pull-right" href="/2025/02/07/%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E5%89%8D%E7%AB%AF%E5%8F%91%E7%89%88/" title="前端代码的发布"><img class="cover" src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png" onerror="onerror=null;src='/img/403.png'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">前端代码的发布</div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info is-center"><div class="avatar-img"><img src="http://mms1.baidu.com/it/u=3426123179,1132541183&amp;fm=253&amp;app=120&amp;f=JPEG?w=801&amp;h=500" onerror="this.onerror=null;this.src='/img/ironheart.gif'" alt="avatar"/></div><div class="author-info-name">呆大王</div><div class="author-info-description">彩笔的打怪升级之路...</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">12</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">5</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://space.bilibili.com/327975356"><i class="fab fa-bilibili"></i><span>关注我B站</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/daidawang" target="_blank" title="Github"><i class="fab fa-github" style="color: #24292e;"></i></a><a class="social-icon" href="https://space.bilibili.com/327975356" target="_blank" title="哔哩哔哩"><i class="fab fa-bilibili" style="color: #FF6699;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">本站所有博文均是博主的学习笔记与个人理解。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link"><span class="toc-number">1.</span> <span class="toc-text"></span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4%E4%B8%80%E3%80%81%E4%B8%8B%E8%BD%BD%E7%9C%81%E5%B8%82%E5%8C%BA%E8%BE%B9%E7%95%8C%E6%95%B0%E6%8D%AE"><span class="toc-number">2.</span> <span class="toc-text">步骤一、下载省市区边界数据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4%E4%BA%8C%E3%80%81%E8%A7%A3%E6%9E%90CSV%E6%96%87%E4%BB%B6%E5%AF%BC%E5%85%A5%E6%95%B0%E6%8D%AE%E5%BA%93"><span class="toc-number">3.</span> <span class="toc-text">步骤二、解析CSV文件导入数据库</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4%E4%B8%89%E3%80%81%E5%9C%A8%E7%A8%8B%E5%BA%8F%E4%B8%AD%E6%A0%B9%E6%8D%AE%E5%9D%90%E6%A0%87%E8%A7%A3%E6%9E%90%E8%8E%B7%E5%BE%97%E5%9F%8E%E5%B8%82"><span class="toc-number">4.</span> <span class="toc-text">步骤三、在程序中根据坐标解析获得城市</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2025/02/17/%E7%AE%97%E5%8A%9B%E4%BA%92%E8%81%94%E4%BA%92%E9%80%9A/" title="无题">无题</a><time datetime="2025-02-17T02:36:40.570Z" title="发表于 2025-02-17 10:36:40">2025-02-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/02/12/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%BB%8F%E7%BA%AC%E5%BA%A6%E8%8E%B7%E5%8F%96%E5%88%B0%E8%A1%8C%E6%94%BF%E5%8C%BA%E5%88%92%E6%95%B0%E6%8D%AE/" title="如何根据经纬度获取到行政区划数据"><img src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png" onerror="this.onerror=null;this.src='/img/403.png'" alt="如何根据经纬度获取到行政区划数据"/></a><div class="content"><a class="title" href="/2025/02/12/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%BB%8F%E7%BA%AC%E5%BA%A6%E8%8E%B7%E5%8F%96%E5%88%B0%E8%A1%8C%E6%94%BF%E5%8C%BA%E5%88%92%E6%95%B0%E6%8D%AE/" title="如何根据经纬度获取到行政区划数据">如何根据经纬度获取到行政区划数据</a><time datetime="2025-02-12T08:14:02.000Z" title="发表于 2025-02-12 16:14:02">2025-02-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/02/07/%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E5%89%8D%E7%AB%AF%E5%8F%91%E7%89%88/" title="前端代码的发布"><img src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png" onerror="this.onerror=null;this.src='/img/403.png'" alt="前端代码的发布"/></a><div class="content"><a class="title" href="/2025/02/07/%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E5%89%8D%E7%AB%AF%E5%8F%91%E7%89%88/" title="前端代码的发布">前端代码的发布</a><time datetime="2025-02-07T06:36:33.000Z" title="发表于 2025-02-07 14:36:33">2025-02-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/01/22/%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A2%AB%E6%8C%96%E7%9F%BF/" title="记录一次服务器被挖矿"><img src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png" onerror="this.onerror=null;this.src='/img/403.png'" alt="记录一次服务器被挖矿"/></a><div class="content"><a class="title" href="/2025/01/22/%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A2%AB%E6%8C%96%E7%9F%BF/" title="记录一次服务器被挖矿">记录一次服务器被挖矿</a><time datetime="2025-01-22T01:48:22.000Z" title="发表于 2025-01-22 09:48:22">2025-01-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/10/22/%E5%8F%91%E7%89%88%E4%B8%8E%E8%87%AA%E5%8A%A8%E9%87%8D%E5%90%AF/" title="发版与自动重启"><img src="https://daidawangblogbucket.oss-cn-beijing.aliyuncs.com/blog/202408122226662.png" onerror="this.onerror=null;this.src='/img/403.png'" alt="发版与自动重启"/></a><div class="content"><a class="title" href="/2024/10/22/%E5%8F%91%E7%89%88%E4%B8%8E%E8%87%AA%E5%8A%A8%E9%87%8D%E5%90%AF/" title="发版与自动重启">发版与自动重启</a><time datetime="2024-10-22T14:37:33.000Z" title="发表于 2024-10-22 22:37:33">2024-10-22</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2024 - 2025 By 呆大王</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div><div class="footer_custom_text">Hi, welcome to my <a href="https://daidawang.github.io/">blog</a>!</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.0.0-b1"></script><script src="/js/main.js?v=5.0.0-b1"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = (ele) => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    Array.from(ele).forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
+      const mermaidID = 'mermaid-' + index
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({svg}) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+    
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (false) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+  
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script></div><div class="aplayer no-destroy" data-id="7427714271" data-server="netease" data-type="playlist" data-fixed="true" data-mini="true" data-listFolded="false" data-order="random" data-lrctype="1" data-preload="none" data-autoplay="true" muted></div><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/dist/activate-power-mode.min.js"></script><script>POWERMODE.colorful = true;
+POWERMODE.shake = true;
+POWERMODE.mobile = false;
+document.body.addEventListener('input', POWERMODE);
+</script><script id="click-show-text" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/dist/click-show-text.min.js" data-mobile="false" data-text="朝闻道，夕死可矣。,我善养吾浩然之气。,虽九死其犹未悔。,立志欲坚不欲锐，成功在久不在速。,伏清白以死直兮，固前圣之所厚。,事垂立而辄废，功未成而旋去。,合抱之木，生于毫末；九层之台，起于累土。,水之积也不厚，则其负大舟也无力。,靡不有初，鲜克有终。,凿井者，起于三寸之坎，以就万仞之深。" data-fontsize="15px" data-random="false" async="async"></script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer@1.10.1/dist/APlayer.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/aplayer@1.10.1/dist/APlayer.min.js"></script><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/metingjs/dist/Meting.min.js"></script><script>(() => {
+  const destroyAplayer = () => {
+    if (window.aplayers) {
+      for (let i = 0; i < window.aplayers.length; i++) {
+        if (!window.aplayers[i].options.fixed) {
+          window.aplayers[i].destroy()
+        }
+      }
+    }
+  }
+
+  const runMetingJS = () => {
+    typeof loadMeting === 'function' && document.getElementsByClassName('aplayer').length && loadMeting()
+  }
+
+  btf.addGlobalFn('pjaxSend', destroyAplayer, 'destroyAplayer')
+  btf.addGlobalFn('pjaxComplete', loadMeting, 'runMetingJS')
+})()</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>let pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+var pjax = new Pjax({
+  elements: 'a:not([target="_blank"])',
+  selectors: pjaxSelectors,
+  cacheBust: false,
+  analytics: false,
+  scrollRestoration: false
+})
+
+const triggerPjaxFn = (val) => {
+  if (!val) return
+  Object.values(val).forEach(fn => { fn() })
+}
+
+document.addEventListener('pjax:send', function () {
+
+  // removeEventListener
+  btf.removeGlobalFnEvent('pjaxSendOnce')
+  btf.removeGlobalFnEvent('themeChange')
+
+  //reset readmode
+  const $bodyClassList = document.body.classList
+  $bodyClassList.contains('read-mode') && $bodyClassList.remove('read-mode')
+
+  triggerPjaxFn(window.globalFn.pjaxSend)
+})
+
+document.addEventListener('pjax:complete', () => {
+  btf.removeGlobalFnEvent('pjaxCompleteOnce')
+  document.querySelectorAll('script[data-pjax]').forEach(item => {
+    const newScript = document.createElement('script')
+    const content = item.text || item.textContent || item.innerHTML || ""
+    Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+    newScript.appendChild(document.createTextNode(content))
+    item.parentNode.replaceChild(newScript, item)
+  })
+
+  triggerPjaxFn(window.globalFn.pjaxComplete)
+})
+
+document.addEventListener('pjax:error', e => {
+  if (e.request.status === 404) {
+    pjax.loadUrl('/404.html')
+  }
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
